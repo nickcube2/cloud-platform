@@ -49,3 +49,17 @@ module "app" {
     Environment = var.environment
   }
 }
+
+module "iam_oidc" {
+  source = "../../modules/iam-oidc"
+
+  project              = var.project
+  github_org           = "nickcube2"
+  github_repo          = "cloud-platform"
+  create_oidc_provider = true
+
+  tags = {
+    Project     = var.project
+    Environment = var.environment
+  }
+}
