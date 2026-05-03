@@ -105,23 +105,24 @@ data "aws_iam_policy_document" "apply_permissions" {
     resources = ["*"]
   }
 
-  statement {
-    sid = "IAMScoped"
-    actions = [
-      "iam:CreateRole", "iam:DeleteRole",
-      "iam:AttachRolePolicy", "iam:DetachRolePolicy",
-      "iam:PutRolePolicy", "iam:DeleteRolePolicy",
-      "iam:GetRole", "iam:GetRolePolicy",
-      "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
-      "iam:PassRole", "iam:TagRole", "iam:UntagRole",
-      "iam:CreateOpenIDConnectProvider",
-      "iam:GetOpenIDConnectProvider",
-      "iam:DeleteOpenIDConnectProvider",
-      "iam:CreateInstanceProfile",
-      "iam:DeleteInstanceProfile"
-    ]
-    resources = ["*"]
-  }
+statement {
+  sid = "IAMScoped"
+  actions = [
+    "iam:CreateRole", "iam:DeleteRole",
+    "iam:AttachRolePolicy", "iam:DetachRolePolicy",
+    "iam:PutRolePolicy", "iam:DeleteRolePolicy",
+    "iam:GetRole", "iam:GetRolePolicy",
+    "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
+    "iam:PassRole", "iam:TagRole", "iam:UntagRole",
+    "iam:CreateOpenIDConnectProvider",
+    "iam:GetOpenIDConnectProvider",
+    "iam:DeleteOpenIDConnectProvider",
+    "iam:CreateInstanceProfile",
+    "iam:DeleteInstanceProfile",
+    "iam:UpdateAssumeRolePolicy"
+  ]
+  resources = ["*"]
+}
 
   statement {
     sid       = "CloudWatchLogs"
