@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cloud-platform — AWS Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0e1a;
+    --bg2: #0f1628;
+    --bg3: #151d35;
+    --border: #1e2d4d;
+    --border2: #2a3f6b;
+    --text: #e8edf8;
+    --text2: #8a9bc4;
+    --text3: #4a5a82;
+    --aws-orange: #FF9900;
+    --aws-orange-dim: rgba(255,153,0,0.15);
+    --blue: #4d9cf8;
+    --blue-dim: rgba(77,156,248,0.12);
+    --green: #3ddc84;
+    --green-dim: rgba(61,220,132,0.12);
+    --purple: #a78bfa;
+    --purple-dim: rgba(167,139,250,0.12);
+    --red: #f87171;
+    --yellow: #fbbf24;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', monospace;
+    min-height: 100vh;
+    padding: 40px 24px;
+  }
+
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  .header {
+    margin-bottom: 40px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .header-left {}
+  .repo-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .title {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .title span { color: var(--aws-orange); }
+  .subtitle {
+    font-size: 13px;
+    color: var(--text2);
+    margin-top: 6px;
+    font-weight: 300;
+  }
+  .badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+  }
+  .badge-orange { background: var(--aws-orange-dim); color: var(--aws-orange); border: 1px solid rgba(255,153,0,0.3); }
+  .badge-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(77,156,248,0.3); }
+  .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(61,220,132,0.3); }
+  .badge-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(167,139,250,0.3); }
+
+  /* Main diagram */
+  .diagram {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  /* Layer */
+  .layer {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .layer-header {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .layer-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .layer-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .layer-desc {
+    font-size: 11px;
+    color: var(--text3);
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .layer-body {
+    padding: 16px;
+  }
+
+  /* Internet layer */
+  .layer-internet { background: var(--bg2); border-color: var(--border); }
+  .layer-internet .layer-dot { background: var(--text3); }
+  .layer-internet .layer-name { color: var(--text2); }
+
+  /* GitHub layer */
+  .layer-github { background: var(--bg2); border-color: var(--purple); box-shadow: 0 0 20px rgba(167,139,250,0.05); }
+  .layer-github .layer-dot { background: var(--purple); }
+  .layer-github .layer-name { color: var(--purple); }
+
+  /* VPC layer */
+  .layer-vpc { background: var(--bg2); border-color: var(--blue); box-shadow: 0 0 30px rgba(77,156,248,0.05); }
+  .layer-vpc .layer-dot { background: var(--blue); }
+  .layer-vpc .layer-name { color: var(--blue); }
+
+  /* State layer */
+  .layer-state { background: var(--bg2); border-color: var(--aws-orange); box-shadow: 0 0 20px rgba(255,153,0,0.05); }
+  .layer-state .layer-dot { background: var(--aws-orange); }
+  .layer-state .layer-name { color: var(--aws-orange); }
+
+  /* Resource cards */
+  .resources {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .resource {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    min-width: 140px;
+    flex: 1;
+    position: relative;
+  }
+  .resource-icon {
+    font-size: 18px;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .resource-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+  .resource-detail {
+    font-size: 10px;
+    color: var(--text3);
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.5;
+  }
+  .resource-tag {
+    position: absolute;
+    top: 8px; right: 8px;
+    font-size: 9px;
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  /* Arrows */
+  .arrow-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 0;
+    gap: 8px;
+  }
+  .arrow-line {
+    width: 2px;
+    background: linear-gradient(180deg, var(--border2), var(--border));
+    margin: 0 auto;
+  }
+  .arrow-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    text-align: center;
+    padding: 3px 10px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    letter-spacing: 0.06em;
+  }
+
+  /* Subnet grid */
+  .subnet-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .subnet {
+    border: 1px dashed var(--border2);
+    border-radius: 8px;
+    padding: 12px;
+    background: rgba(255,255,255,0.01);
+  }
+  .subnet-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .subnet-label::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .subnet-public .subnet-label::before { background: var(--green); }
+  .subnet-private .subnet-label::before { background: var(--blue); }
+  .subnet-resources { display: flex; flex-direction: column; gap: 6px; }
+  .subnet-resource {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text2);
+  }
+  .subnet-resource span { font-size: 13px; }
+
+  /* Flow arrows inside VPC */
+  .flow-arrow {
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text3);
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .flow-arrow::before, .flow-arrow::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Security group indicator */
+  .sg-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--yellow);
+    background: rgba(251,191,36,0.1);
+    border: 1px solid rgba(251,191,36,0.2);
+    border-radius: 3px;
+    padding: 2px 6px;
+    margin-top: 4px;
+  }
+
+  /* CI/CD flow */
+  .cicd-flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+  .cicd-step {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    text-align: center;
+    flex: 1;
+    min-width: 90px;
+  }
+  .cicd-step .step-icon { font-size: 14px; display: block; margin-bottom: 3px; }
+  .cicd-step .step-name { font-weight: 600; color: var(--text); }
+  .cicd-step .step-detail { color: var(--text3); font-size: 9px; margin-top: 2px; }
+  .cicd-arrow {
+    color: var(--border2);
+    font-size: 14px;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+  .cicd-step.gate {
+    border-color: var(--purple);
+    background: var(--purple-dim);
+  }
+  .cicd-step.gate .step-name { color: var(--purple); }
+
+  /* State resources */
+  .state-resources {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .state-resource {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    flex: 1;
+    min-width: 160px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .state-resource .sr-icon { font-size: 20px; margin-bottom: 6px; }
+  .state-resource .sr-name { font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .state-resource .sr-detail { font-size: 10px; color: var(--text3); line-height: 1.6; }
+
+  /* Legend */
+  .legend {
+    margin-top: 24px;
+    padding: 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+  }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Connector lines between layers */
+  .connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px 0;
+    gap: 2px;
+  }
+  .connector-line {
+    width: 2px;
+    height: 16px;
+    background: var(--border2);
+  }
+  .connector-arrow {
+    font-size: 10px;
+    color: var(--text3);
+  }
+  .connector-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2px 8px;
+    letter-spacing: 0.06em;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="repo-label">nickcube2 / cloud-platform</div>
+      <div class="title">AWS <span>cloud-platform</span></div>
+      <div class="subtitle">Production-grade infrastructure · Terraform · ECS Fargate · GitHub Actions OIDC</div>
+    </div>
+    <div class="badges">
+      <span class="badge badge-orange">AWS us-east-1</span>
+      <span class="badge badge-blue">Terraform 1.7</span>
+      <span class="badge badge-green">ECS Fargate</span>
+      <span class="badge badge-purple">OIDC CI/CD</span>
+    </div>
+  </div>
+
+  <div class="diagram">
+
+    <!-- Internet -->
+    <div class="layer layer-internet">
+      <div class="layer-header">
+        <div class="layer-dot"></div>
+        <div class="layer-name">Internet</div>
+        <div class="layer-desc">0.0.0.0/0</div>
+      </div>
+      <div class="layer-body">
+        <div class="resources">
+          <div class="resource" style="border-color:#2a3f6b;">
+            <span class="resource-icon">🌐</span>
+            <div class="resource-name">Public Users</div>
+            <div class="resource-detail">HTTP :80<br>→ ALB DNS</div>
+          </div>
+          <div class="resource" style="border-color:#2a3f6b;">
+            <span class="resource-icon">🐙</span>
+            <div class="resource-name">GitHub Actions</div>
+            <div class="resource-detail">OIDC token exchange<br>→ sts:AssumeRoleWithWebIdentity</div>
+          </div>
+          <div class="resource" style="border-color:#2a3f6b;">
+            <span class="resource-icon">📦</span>
+            <div class="resource-name">Docker Hub / ECR</div>
+            <div class="resource-detail">Container image pull<br>→ via NAT Gateway</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connector -->
+    <div class="connector">
+      <div class="connector-line"></div>
+      <div class="connector-label">HTTPS / OIDC token</div>
+      <div class="connector-line"></div>
+    </div>
+
+    <!-- GitHub Actions CI/CD -->
+    <div class="layer layer-github">
+      <div class="layer-header">
+        <div class="layer-dot"></div>
+        <div class="layer-name">GitHub Actions CI/CD</div>
+        <div class="layer-desc">.github/workflows/</div>
+      </div>
+      <div class="layer-body">
+        <div class="cicd-flow">
+          <div class="cicd-step">
+            <span class="step-icon">🔀</span>
+            <div class="step-name">Pull Request</div>
+            <div class="step-detail">any branch → main</div>
+          </div>
+          <div class="cicd-arrow">→</div>
+          <div class="cicd-step">
+            <span class="step-icon">📋</span>
+            <div class="step-name">terraform plan</div>
+            <div class="step-detail">plan role (read-only)<br>posted to PR comment</div>
+          </div>
+          <div class="cicd-arrow">→</div>
+          <div class="cicd-step gate">
+            <span class="step-icon">✋</span>
+            <div class="step-name">Approval Gate</div>
+            <div class="step-detail">GitHub environment<br>required reviewer</div>
+          </div>
+          <div class="cicd-arrow">→</div>
+          <div class="cicd-step">
+            <span class="step-icon">🚀</span>
+            <div class="step-name">terraform apply</div>
+            <div class="step-detail">apply role (scoped write)<br>main branch only</div>
+          </div>
+          <div class="cicd-arrow">→</div>
+          <div class="cicd-step">
+            <span class="step-icon">🔍</span>
+            <div class="step-name">Drift Detection</div>
+            <div class="step-detail">daily 8am UTC<br>-detailed-exitcode</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connector -->
+    <div class="connector">
+      <div class="connector-line"></div>
+      <div class="connector-label">terraform apply → AWS APIs</div>
+      <div class="connector-line"></div>
+    </div>
+
+    <!-- AWS VPC -->
+    <div class="layer layer-vpc">
+      <div class="layer-header">
+        <div class="layer-dot"></div>
+        <div class="layer-name">AWS VPC — cloud-platform-prod</div>
+        <div class="layer-desc">10.0.0.0/16 · us-east-1</div>
+      </div>
+      <div class="layer-body">
+
+        <!-- Public subnets -->
+        <div class="subnet-grid">
+          <div class="subnet subnet-public">
+            <div class="subnet-label">Public Subnet — AZ-1a · 10.0.1.0/24</div>
+            <div class="subnet-resources">
+              <div class="subnet-resource"><span>⚖️</span> ALB — cloud-platform-prod-app-alb</div>
+              <div class="subnet-resource"><span>🌐</span> Internet Gateway</div>
+              <div class="subnet-resource"><span>🔀</span> NAT Gateway + Elastic IP</div>
+            </div>
+          </div>
+          <div class="subnet subnet-public">
+            <div class="subnet-label">Public Subnet — AZ-1b · 10.0.2.0/24</div>
+            <div class="subnet-resources">
+              <div class="subnet-resource"><span>⚖️</span> ALB (multi-AZ span)</div>
+              <div class="subnet-resource"><span>🛣️</span> Route Table → IGW</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-arrow">ALB → ECS (port 80, SG identity-based, not CIDR)</div>
+
+        <!-- Private subnets -->
+        <div class="subnet-grid">
+          <div class="subnet subnet-private">
+            <div class="subnet-label">Private Subnet — AZ-1a · 10.0.10.0/24</div>
+            <div class="subnet-resources">
+              <div class="subnet-resource"><span>🐳</span> ECS Fargate Task (nginx)</div>
+              <div class="subnet-resource"><span>🔌</span> ENI — awsvpc mode</div>
+              <div class="subnet-resource"><span>🛣️</span> Route Table → NAT GW</div>
+            </div>
+            <div class="sg-badge">🔒 SG: inbound from ALB-SG only</div>
+          </div>
+          <div class="subnet subnet-private">
+            <div class="subnet-label">Private Subnet — AZ-1b · 10.0.11.0/24</div>
+            <div class="subnet-resources">
+              <div class="subnet-resource"><span>🐳</span> ECS Fargate Task (nginx)</div>
+              <div class="subnet-resource"><span>🔌</span> ENI — awsvpc mode</div>
+              <div class="subnet-resource"><span>🛣️</span> Route Table → NAT GW</div>
+            </div>
+            <div class="sg-badge">🔒 SG: inbound from ALB-SG only</div>
+          </div>
+        </div>
+
+        <div class="flow-arrow" style="margin-top:10px;">VPC Flow Logs → CloudWatch /aws/vpc/flow-logs/cloud-platform-prod · 30 day retention</div>
+
+      </div>
+    </div>
+
+    <!-- Connector -->
+    <div class="connector">
+      <div class="connector-line"></div>
+      <div class="connector-label">S3 GetObject / PutObject · KMS Decrypt · DynamoDB LockID</div>
+      <div class="connector-line"></div>
+    </div>
+
+    <!-- State Backend -->
+    <div class="layer layer-state">
+      <div class="layer-header">
+        <div class="layer-dot"></div>
+        <div class="layer-name">Terraform State Backend</div>
+        <div class="layer-desc">bootstrap/ · runs once</div>
+      </div>
+      <div class="layer-body">
+        <div class="state-resources">
+          <div class="state-resource">
+            <div class="sr-icon">🪣</div>
+            <div class="sr-name">S3 Bucket</div>
+            <div class="sr-detail">
+              cloud-platform-terraform-state-405449137534<br>
+              versioning: enabled<br>
+              encryption: SSE-KMS<br>
+              public access: blocked (all 4)<br>
+              TLS: enforced via bucket policy
+            </div>
+          </div>
+          <div class="state-resource">
+            <div class="sr-icon">🗄️</div>
+            <div class="sr-name">DynamoDB Table</div>
+            <div class="sr-detail">
+              cloud-platform-terraform-locks<br>
+              hash key: LockID<br>
+              billing: PAY_PER_REQUEST<br>
+              PITR: enabled<br>
+              encryption: SSE-KMS
+            </div>
+          </div>
+          <div class="state-resource">
+            <div class="sr-icon">🔑</div>
+            <div class="sr-name">KMS Key</div>
+            <div class="sr-detail">
+              alias/cloud-platform-terraform-state<br>
+              key rotation: enabled (365d)<br>
+              deletion window: 10 days<br>
+              used by: S3 + DynamoDB
+            </div>
+          </div>
+          <div class="state-resource">
+            <div class="sr-icon">🪪</div>
+            <div class="sr-name">IAM OIDC Roles</div>
+            <div class="sr-detail">
+              plan-role: ReadOnlyAccess<br>
+              any branch → can plan<br>
+              apply-role: scoped write<br>
+              main branch only → can apply
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Public subnet (internet-facing)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Private subnet (no direct internet)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div>GitHub Actions OIDC</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--aws-orange)"></div>State backend (bootstrap)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>Security group boundary</div>
+    <div class="legend-item" style="margin-left:auto;"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);">github.com/nickcube2/cloud-platform</span></div>
+  </div>
+
+</div>
+</body>
+</html>
